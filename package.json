@@ -2,14 +2,20 @@
   "name": "api",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "next dev"
+    "dev": "nodemon -L ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "next": "^11.1.2"
+    "crypto": "^1.0.1",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "firebase": "^9.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.12"
   }
 }
