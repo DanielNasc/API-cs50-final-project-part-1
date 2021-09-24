@@ -13,7 +13,7 @@ const
     arrayRemove
 } 
 = require("firebase/firestore")
-const {encrypt_Hmac} = require("../services/encrypt")
+const {encrypt_Hmac, encrypt_AES, decrypt_AES} = require("../services/encrypt")
 
 // DOCUMENTATION
 // https://firebase.google.com/docs/firestore/manage-data/add-data
@@ -28,11 +28,11 @@ async function POST_USER(req, res)
     if (!email || !pass || !username)
         return res.send({"ERROR": "Missing information"})
     
-    // preserve user privacy
+    // usr object
     const USR =
     {
-        username: encrypt_Hmac(username),
-        email: encrypt_Hmac(email),
+        username,
+        email,
         pass: encrypt_Hmac(pass),
         friends: [],
         pending: []
@@ -63,7 +63,7 @@ async function ASK_FOR_FRIENDSHIP(req, res)
         return res.send({"Message": "Missing information"})
 
     // encrypt the receiver's username to be able to look it up in the database
-    receiver = encrypt_Hmac(receiver)
+    // receiver = encrypt_AES(receiver)
 
     // get sender reference
     const SENDER_REF = await getDoc(doc(db, "users", sender_id))
@@ -137,7 +137,41 @@ async function get_data(prop, value)
     // check if query exists
     const q = query(USER_REF, where(prop, "==", value))
     const docs = await getDocs(q)
-    return docs
+    return docs 
+}
+
+
+async function LIST_FRIENDS_OR_FRIEND_REQUESTS(req, res)
+{
+    // get data
+    const {user_id, friends} = req.body
+    if (!user_id)
+        return res.send({"Message": "Invalid user id"})
+
+    // get user data from database
+    const USER = await get_snap_and_ref("users", user_id)
+    if (!USER)
+        return res.send({"Message": "Invalid user"})
+
+    // get friend list or request list
+    const ids_list = friends ?
+    USER.SNAP.data().friends :
+    USER.SNAP.data().pending
+
+    // map function
+    async function map_ids(id)
+    {
+        const friend = await getDoc(doc(db, "users", id))
+        username = friend.data().username
+        return username
+    }
+
+    // get user names from their ids
+    // https://stackoverflow.com/questions/40140149/use-async-await-with-array-map
+    const FRIENDS_NAMES = await Promise.all(ids_list.map(map_ids))
+
+    // return list
+    return res.send({list: FRIENDS_NAMES})
 }
 
 // TEMP =========================================================
@@ -163,4 +197,9 @@ async function reject_friend_request(RECEIVER_REF, SENDER_SNAP)
     return
 }
 
-module.exports = {POST_USER, ASK_FOR_FRIENDSHIP, ACCEPT_REFUSE_FRIEND_REQUEST}
+module.exports = {
+    POST_USER, 
+    ASK_FOR_FRIENDSHIP, 
+    ACCEPT_REFUSE_FRIEND_REQUEST,
+    LIST_FRIENDS_OR_FRIEND_REQUESTS
+}
