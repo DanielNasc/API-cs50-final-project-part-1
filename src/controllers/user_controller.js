@@ -9,7 +9,8 @@ const
     doc, 
     getDoc, 
     updateDoc,
-    arrayUnion
+    arrayUnion,
+    arrayRemove
 } 
 = require("firebase/firestore")
 const {encrypt_Hmac} = require("../services/encrypt")
@@ -47,10 +48,10 @@ async function POST_USER(req, res)
 
     // add user to database
     const USER_REF = collection(db, "users")
-    await addDoc(USER_REF, {...USR})
+    const id = (await addDoc(USER_REF, {...USR})).id
 
-    // return ":D" for now, I guess
-    return res.send({"Message": ":D"})
+    // return user id
+    return res.send({id})
 }
 
 async function ASK_FOR_FRIENDSHIP(req, res)
@@ -65,7 +66,7 @@ async function ASK_FOR_FRIENDSHIP(req, res)
     receiver = encrypt_Hmac(receiver)
 
     // get sender reference
-    const SENDER_REF = await getDoc(doc(db, `users/${sender_id}`))
+    const SENDER_REF = await getDoc(doc(db, "users", sender_id))
     if (!SENDER_REF.exists())
         return res.send({"ERROR": "invalid sender"})
 
@@ -75,20 +76,56 @@ async function ASK_FOR_FRIENDSHIP(req, res)
         return res.send({"ERROR": "invalid receiver"})
 
     // https://fireship.io/snippets/read-a-single-firestore-document/
-    const RECEIVER_DOC = RECEIVER_DOCS.docs[0]
-    const RECEIVER_ID = RECEIVER_DOC.id
-    const RECEIVER_DATA = RECEIVER_DOC.data()
+    const RECEIVER_SNAP = RECEIVER_DOCS.docs[0]
+    const RECEIVER_ID = RECEIVER_SNAP.id
+    const RECEIVER_DATA = RECEIVER_SNAP.data()
 
     // https://www.w3schools.com/jsref/jsref_includes_array.asp
     // check if the receiver is already a friend or if he already has a pending order from the sender
-    if ((RECEIVER_DATA.friends.includes(SENDER_REF.id)) || (RECEIVER_DATA.pending.includes(SENDER_REF.id)))
+    if (
+        (RECEIVER_DATA.friends.includes(SENDER_REF.id)) || 
+        (RECEIVER_DATA.pending.includes(SENDER_REF.id)) || 
+        (SENDER_REF.data().pending.includes(RECEIVER_SNAP.id))
+        )
         return res.send({"Message": "wdkwodkwfoeifri"})
     
     // otherwise, put the friend request on a list to be accepted or rejected later.
     // https://stackoverflow.com/questions/46757614/how-to-update-an-array-of-objects-with-firestore
-    await updateDoc(doc(db, `users/${RECEIVER_ID}`), {pending: arrayUnion(SENDER_REF.id)})
+    await updateDoc(doc(db, "users", RECEIVER_ID), {pending: arrayUnion(SENDER_REF.id)})
 
     // return ":D" for now, I guess
+    return res.send({"Message": ":D"})
+}
+
+async function ACCEPT_REFUSE_FRIEND_REQUEST(req, res)
+{
+    // get data
+    const { receiver_id, sender_id, accepted } = req.body
+
+    if (!receiver_id || !sender_id)
+        return res.send({"Message": "bruh"})
+
+    // get receiver reference and snapshot on database
+    const RECEIVER = await get_snap_and_ref("users", receiver_id)
+    if (!RECEIVER)
+        return res.send({"Message": "Invalid Receiver"})
+
+    // get sender reference and snapshot on database
+    const SENDER = await get_snap_and_ref("users", sender_id)
+    if (!SENDER)
+        return res.send({"Message": "Invalid Sender"})
+
+    // check if the receiver really has a friend request from the sender (maybe I'll implement a system to block users, then they won't be able to send friend requests)
+    const RECEIVER_DATA = RECEIVER.SNAP.data()
+    if (!RECEIVER_DATA.pending.includes(SENDER.SNAP.id))
+        return res.send({"e": "eeeeeeee"})
+    
+    // accept or refuse frined request
+    accepted ? 
+    await accept_friend_request(RECEIVER.REF, SENDER.REF, RECEIVER.SNAP, SENDER.SNAP):
+    await reject_friend_request(RECEIVER.REF, SENDER.SNAP)
+
+    // return :D for now
     return res.send({"Message": ":D"})
 }
 
@@ -103,4 +140,27 @@ async function get_data(prop, value)
     return docs
 }
 
-module.exports = {POST_USER, ASK_FOR_FRIENDSHIP}
+// TEMP =========================================================
+async function get_snap_and_ref(collection, id)
+{
+    const REF = doc(db, collection, id)
+    const SNAP = await getDoc(REF)
+    if (!SNAP.exists())
+        return false
+    return {REF, SNAP}
+}
+
+async function accept_friend_request(RECEIVER_REF, SENDER_REF, RECEIVER_SNAP, SENDER_SNAP)
+{
+    await updateDoc(RECEIVER_REF, {pending: arrayRemove(SENDER_SNAP.id), friends: arrayUnion(SENDER_SNAP.id)})
+    await updateDoc(SENDER_REF, {friends: arrayUnion(RECEIVER_SNAP.id)})
+    return
+}
+
+async function reject_friend_request(RECEIVER_REF, SENDER_SNAP)
+{
+    await updateDoc(RECEIVER_REF, {pending: arrayRemove(SENDER_SNAP.id)})
+    return
+}
+
+module.exports = {POST_USER, ASK_FOR_FRIENDSHIP, ACCEPT_REFUSE_FRIEND_REQUEST}
