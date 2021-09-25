@@ -1,11 +1,6 @@
 const db = require("../services/firebase")
 const 
 { 
-    collection, 
-    query, 
-    where, 
-    getDocs, 
-    addDoc, 
     doc, 
     getDoc, 
     updateDoc,
@@ -13,7 +8,8 @@ const
     arrayRemove
 } 
 = require("firebase/firestore")
-const {encrypt_Hmac, encrypt_AES, decrypt_AES} = require("../services/encrypt")
+const {encrypt_Hmac} = require("../services/encrypt")
+const {get_snap_and_ref, get_data_by_query, create_doc} = require("../services/firestore_funcs")
 
 // DOCUMENTATION
 // https://firebase.google.com/docs/firestore/manage-data/add-data
@@ -24,6 +20,7 @@ async function POST_USER(req, res)
 {
     // Get POST data
     const {username, email, pass} = req.body
+    const COLLECTION = "users"
     
     if (!email || !pass || !username)
         return res.send({"ERROR": "Missing information"})
@@ -39,16 +36,15 @@ async function POST_USER(req, res)
     }
     
     // check if the username exists
-    if (!(await get_data("username", USR.username)).empty)
+    if (!(await get_data_by_query(COLLECTION, "username", USR.username)))
         return res.send({"Message": "Username already exists"})
     
     // check if the email is already being used
-    if (!(await get_data("email", USR.email)).empty)
+    if (!(await get_data_by_query(COLLECTION, "email", USR.email)))
         return res.send({"Message": "Try another email"})
 
     // add user to database
-    const USER_REF = collection(db, "users")
-    const id = (await addDoc(USER_REF, {...USR})).id
+    const id = await create_doc(COLLECTION, USR)
 
     // return user id
     return res.send({id})
@@ -71,12 +67,11 @@ async function ASK_FOR_FRIENDSHIP(req, res)
         return res.send({"ERROR": "invalid sender"})
 
     // search the receiver in the database
-    const RECEIVER_DOCS = await get_data("username", receiver)
-    if (RECEIVER_DOCS.empty)
+    const RECEIVER_SNAP = await get_data_by_query("users", "username", receiver)
+    if (!RECEIVER_SNAP)
         return res.send({"ERROR": "invalid receiver"})
 
     // https://fireship.io/snippets/read-a-single-firestore-document/
-    const RECEIVER_SNAP = RECEIVER_DOCS.docs[0]
     const RECEIVER_ID = RECEIVER_SNAP.id
     const RECEIVER_DATA = RECEIVER_SNAP.data()
 
@@ -129,18 +124,6 @@ async function ACCEPT_REFUSE_FRIEND_REQUEST(req, res)
     return res.send({"Message": ":D"})
 }
 
-async function get_data(prop, value)
-{
-    // get the reference of the users' document collection
-    const USER_REF = collection(db, "users")
-
-    // check if query exists
-    const q = query(USER_REF, where(prop, "==", value))
-    const docs = await getDocs(q)
-    return docs 
-}
-
-
 async function LIST_FRIENDS_OR_FRIEND_REQUESTS(req, res)
 {
     // get data
@@ -175,14 +158,6 @@ async function LIST_FRIENDS_OR_FRIEND_REQUESTS(req, res)
 }
 
 // TEMP =========================================================
-async function get_snap_and_ref(collection, id)
-{
-    const REF = doc(db, collection, id)
-    const SNAP = await getDoc(REF)
-    if (!SNAP.exists())
-        return false
-    return {REF, SNAP}
-}
 
 async function accept_friend_request(RECEIVER_REF, SENDER_REF, RECEIVER_SNAP, SENDER_SNAP)
 {
