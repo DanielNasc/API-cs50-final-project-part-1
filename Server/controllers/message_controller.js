@@ -33,12 +33,13 @@ async function handle_msg(req, res)
     // add message to database document (or create a new one if it doesn't exist)
     const MESSAGES = await get_data_by_query("chats", "users", users)
     if (!MESSAGES){
-        await create_doc("chats", {users: users, messages: [message]}) // return document id
-        return res.send({"Message": ":D"})
+        const chat_id = await create_doc("chats", {users})
+        await create_doc(`chats/${chat_id}/messages`, message)
+        return res.send({"Message": chat_id})
     }
-    await updateDoc(doc(db, "chats", MESSAGES.id), {messages: arrayUnion(message)})
 
-    return res.send({"Message": ":D"})
+    await create_doc(`chats/${MESSAGES.id}/messages`, message)
+    return res.send({"Message": MESSAGES.id})
 }
 
 module.exports = {
