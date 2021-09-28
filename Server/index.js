@@ -8,13 +8,14 @@ const { Server } = require("socket.io")
 const io = new Server(server)
 
 const {  SEND_MSG, chat_controller } = require("./controllers/message_controller")
-const { POST_USER,  ASK_FOR_FRIENDSHIP,  ACCEPT_REFUSE_FRIEND_REQUEST, LIST_FRIENDS_OR_FRIEND_REQUESTS, } = require("./controllers/user_controller")
+const { POST_USER, LOGIN, ASK_FOR_FRIENDSHIP,  ACCEPT_REFUSE_FRIEND_REQUEST, LIST_FRIENDS_OR_FRIEND_REQUESTS, } = require("./controllers/user_controller")
 
 const PORT = 3000 | process.env.PORT
  
 app.use(express.urlencoded({extended: true}))
 
-app.post("/add-user", POST_USER)
+app.post("/register", POST_USER)
+app.post("/login", LOGIN)
 app.post("/add-friend", ASK_FOR_FRIENDSHIP)
 app.post("/accept-or-refuse", ACCEPT_REFUSE_FRIEND_REQUEST)
 app.post("/get-friends-list", LIST_FRIENDS_OR_FRIEND_REQUESTS)

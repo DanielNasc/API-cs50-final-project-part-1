@@ -1,13 +1,5 @@
 const db = require("../services/firebase")
-const 
-{ 
-    doc, 
-    getDoc, 
-    updateDoc,
-    arrayUnion,
-    arrayRemove
-} 
-= require("firebase/firestore")
+const { doc,  getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, collection, query, where } = require("firebase/firestore")
 const {encrypt_Hmac} = require("../services/encrypt")
 const {get_snap_and_ref, get_data_by_query, create_doc} = require("../services/firestore_funcs")
 
@@ -36,11 +28,11 @@ async function POST_USER(req, res)
     }
     
     // check if the username exists
-    if (!(await get_data_by_query(COLLECTION, "username", USR.username)))
+    if ((await get_data_by_query(COLLECTION, "username", USR.username)))
         return res.send({"Message": "Username already exists"})
     
     // check if the email is already being used
-    if (!(await get_data_by_query(COLLECTION, "email", USR.email)))
+    if ((await get_data_by_query(COLLECTION, "email", USR.email)))
         return res.send({"Message": "Try another email"})
 
     // add user to database
@@ -48,6 +40,21 @@ async function POST_USER(req, res)
 
     // return user id
     return res.send({id})
+}
+
+async function LOGIN(req, res)
+{
+    const { email, pass } = req.body
+
+    const REF = collection(db, "users")
+
+    const q = query(REF, where("email", "==", email), where("pass", "==", encrypt_Hmac(pass)))
+    const docs = await getDocs(q)
+    if (docs.empty)
+        return res.send({"Message": "Invalid User"})
+    const usr_id = docs.docs[0].id
+
+    return res.send({usr_id})
 }
 
 async function ASK_FOR_FRIENDSHIP(req, res)
@@ -174,6 +181,7 @@ async function reject_friend_request(RECEIVER_REF, SENDER_SNAP)
 
 module.exports = {
     POST_USER, 
+    LOGIN,
     ASK_FOR_FRIENDSHIP, 
     ACCEPT_REFUSE_FRIEND_REQUEST,
     LIST_FRIENDS_OR_FRIEND_REQUESTS

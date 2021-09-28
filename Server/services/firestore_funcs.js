@@ -1,15 +1,5 @@
 const db = require("./firebase")
-const { 
-    doc,
-    getDoc,
-    collection,
-    where,
-    query,
-    getDocs,
-    addDoc,
-    orderBy,
-    limit
- } = require("firebase/firestore")
+const { doc, getDoc, collection, where, query, getDocs, addDoc, orderBy, limit } = require("firebase/firestore")
 
  async function create_doc(collec, obj)
  {
