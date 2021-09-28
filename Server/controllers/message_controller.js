@@ -5,7 +5,7 @@ const { get_data_by_query, create_doc, get_snap_and_ref, order_limit_data, get_u
 async function SEND_MSG(req, res)
 {
     // get data
-    const {users, text, sender} = req.body
+    let {users, text, sender} = req.body
     if (!users || users.length != 2 || !text || !users.includes(sender))
         return res.send({"Message": "bruh"})
     
@@ -13,7 +13,10 @@ async function SEND_MSG(req, res)
     const user_1 = await get_snap_and_ref("users", users[0])
     if(!user_1 || !user_1.SNAP.data().friends.includes(users[1]))
         return res.send({"Message": "bruh"})
-
+    
+    /// sort the array to avoid bugs when comparing the compare with the database
+    users = users.sort()
+        
     // Message Obj
     const message = {
         sender,
@@ -27,11 +30,11 @@ async function SEND_MSG(req, res)
     if (!MESSAGES){
         const chat_id = await create_doc("chats", {users})
         await create_doc(`chats/${chat_id}/messages`, message)
-        return res.send({chat_id, users})
+        return res.send({"Message": ":D"})
     }
 
     await create_doc(`chats/${MESSAGES.id}/messages`, message)
-    return res.send({"Message": MESSAGES.id})
+    return res.send({"Message": ":D"})
 }
 
 
@@ -44,7 +47,8 @@ async function chat_controller(socket, io)
     let chat_id
 
     socket.on('get_chat',async (users) => {
-
+        // sort the array to avoid bugs when comparing the compare with the database
+        users = users.sort()
         // get chat id
         chat_id = await connect_to_chat(users)
         if (!chat_id)
@@ -125,8 +129,9 @@ async function get_chat_messages(chat_id, usernames)
     const messages = []
     msg_docs.forEach(message => {
         // change user id by his name
-        message.data().sender =  usernames[sender]
-        messages.push(message.data())
+        msg_data = message.data()
+        msg_data.sender =  usernames[msg_data.sender]
+        messages.push(msg_data)
     })
 
     return messages

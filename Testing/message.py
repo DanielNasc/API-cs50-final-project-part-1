@@ -2,7 +2,7 @@ from logging import error
 import socketio
 
 # Testing chat
-users = ["85VfHyY6sRvcg20gihxX", "gfKOtR1kTfQlkKkWigVj"]
+users = ["XfPMwQRqkcOBhcY4GBlD", "fNspVjsajF0JX5pWv6Kl"]
 sio = socketio.Client()
 
 @sio.event
