@@ -1,7 +1,7 @@
 const db = require("../services/firebase")
 const { doc, updateDoc, arrayUnion, getDocs, collection, query, where } = require("firebase/firestore")
 const {encrypt_Hmac} = require("../services/encrypt")
-const {get_snap_and_ref, get_data_by_query, create_doc, get_username, accept_friend_request, reject_friend_request} = require("../services/firestore_funcs")
+const {get_snap_and_ref, get_data_by_query, create_doc, get_username, accept_friend_request, reject_friend_request, delete_friend_firestore} = require("../services/firestore_funcs")
 
 // DOCUMENTATION
 // https://firebase.google.com/docs/firestore/manage-data/add-data
@@ -110,20 +110,9 @@ async function accept_refuse_friend_request(req, res)
     if (!receiver_id || !sender_id)
         return res.send({"Message": "bruh"})
 
-    // get receiver reference and snapshot on database
-    const receiver = await get_snap_and_ref(U, receiver_id)
-    if (!receiver)
-        return res.send({"Message": "Invalid Receiver"})
-
-    // get sender reference and snapshot on database
-    const sender = await get_snap_and_ref(U, sender_id)
-    if (!sender)
-        return res.send({"Message": "Invalid Sender"})
-
-    // check if the receiver really has a friend request from the sender (maybe I'll implement a system to block users, then they won't be able to send friend requests)
-    const receiver_data = receiver.SNAP.data()
-    if (!receiver_data.pending.includes(sender.SNAP.id))
-        return res.send({"e": "eeeeeeee"})
+    const users = await get_sender_and_receiver(sender_id, receiver_id)
+    if (!users) return res.send({"Message": "Invalid Users"})
+    const { receiver, sender } = users
     
     // accept or refuse frined request
     accepted ? 
@@ -164,10 +153,42 @@ async function list_friends_or_friend_requests(req, res)
     return res.send({list: usernames})
 }
 
+async function remove_friend(req, res)
+{
+    const { sender_id, receiver_id } = req.body
+
+    const users = await get_sender_and_receiver(sender_id, receiver_id, true)
+    if (!users) return res.send({"Message": "Invalid Users"})
+    const { receiver, sender } = users
+
+    await delete_friend_firestore(receiver.REF, sender.REF, receiver.SNAP.id, sender.SNAP.id)
+    return res.send({"Message": ":D"})
+}
+
+async function get_sender_and_receiver(sender_id, receiver_id, wanna_friend_list = false)
+{
+    const list = wanna_friend_list ? "friends" : "pending"
+    // get sender reference and snapshot on database
+    const sender = await get_snap_and_ref(U, sender_id)
+    // get receiver reference and snapshot on database
+    const receiver = await get_snap_and_ref(U, receiver_id)
+
+    if (!sender || !receiver)
+        return false
+
+    // check if the receiver really has a friend request from the sender (maybe I'll implement a system to block users, then they won't be able to send friend requests)
+    const receiver_data = receiver.SNAP.data()
+    if (!receiver_data[list].includes(sender.SNAP.id))
+        return false
+
+    return {sender, receiver}
+}
+
 module.exports = {
     post_user, 
     login,
     send_friend_request, 
     accept_refuse_friend_request,
-    list_friends_or_friend_requests
+    list_friends_or_friend_requests,
+    remove_friend
 }

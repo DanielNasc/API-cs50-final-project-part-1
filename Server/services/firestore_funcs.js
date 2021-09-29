@@ -65,6 +65,13 @@ async function reject_friend_request(RECEIVER_REF, SENDER_ID)
     return
 }
 
+async function delete_friend_firestore(RECEIVER_REF, SENDER_REF, RECEIVER_ID, SENDER_ID)
+{
+    await updateDoc(RECEIVER_REF, {friends: arrayRemove(SENDER_ID)})
+    await updateDoc(SENDER_REF, {friends: arrayRemove(RECEIVER_ID)})
+    return
+}
+
 module.exports = {
     get_snap_and_ref, 
     check_if_this_exists, 
@@ -73,5 +80,6 @@ module.exports = {
     order_limit_data,
     get_username,
     accept_friend_request,
-    reject_friend_request
+    reject_friend_request,
+    delete_friend_firestore
 }
