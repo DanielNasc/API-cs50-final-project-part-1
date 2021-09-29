@@ -1,8 +1,8 @@
 const db = require("../services/firebase")
 const { Timestamp, onSnapshot, query, orderBy, collection, where } = require("firebase/firestore")
 const { get_data_by_query, create_doc, get_snap_and_ref, order_limit_data, get_username } = require("../services/firestore_funcs")
-
-async function SEND_MSG(req, res)
+ 
+async function send_msg(req, res)
 {
     // get data
     let {users, text, sender} = req.body
@@ -26,14 +26,14 @@ async function SEND_MSG(req, res)
     }
 
     // add message to database document (or create a new one if it doesn't exist)
-    const MESSAGES = await get_data_by_query("chats", "users", users)
-    if (!MESSAGES){
+    const chat = await get_data_by_query("chats", "users", users)
+    if (!chat){
         const chat_id = await create_doc("chats", {users})
         await create_doc(`chats/${chat_id}/messages`, message)
         return res.send({"Message": ":D"})
     }
 
-    await create_doc(`chats/${MESSAGES.id}/messages`, message)
+    await create_doc(`chats/${chat.id}/messages`, message)
     return res.send({"Message": ":D"})
 }
 
@@ -140,6 +140,6 @@ async function get_chat_messages(chat_id, usernames)
 module.exports = {
     get_chat_messages,
     connect_to_chat,
-    SEND_MSG,
+    send_msg,
     chat_controller
 }

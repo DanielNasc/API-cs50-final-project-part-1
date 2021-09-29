@@ -1,5 +1,5 @@
 const db = require("./firebase")
-const { doc, getDoc, collection, where, query, getDocs, addDoc, orderBy, limit } = require("firebase/firestore")
+const { doc, getDoc, collection, where, query, getDocs, addDoc, orderBy, limit, updateDoc, arrayRemove, arrayUnion } = require("firebase/firestore")
 
  async function create_doc(collec, obj)
  {
@@ -52,11 +52,26 @@ async function get_username(user_id)
     if (user) return user.SNAP.data().username
 }
 
+async function accept_friend_request(RECEIVER_REF, SENDER_REF, RECEIVER_ID, SENDER_ID)
+{
+    await updateDoc(RECEIVER_REF, {pending: arrayRemove(SENDER_ID), friends: arrayUnion(SENDER_ID)})
+    await updateDoc(SENDER_REF, {friends: arrayUnion(RECEIVER_ID)})
+    return
+}
+
+async function reject_friend_request(RECEIVER_REF, SENDER_ID)
+{
+    await updateDoc(RECEIVER_REF, {pending: arrayRemove(SENDER_ID)})
+    return
+}
+
 module.exports = {
     get_snap_and_ref, 
     check_if_this_exists, 
     get_data_by_query,
     create_doc,
     order_limit_data,
-    get_username
+    get_username,
+    accept_friend_request,
+    reject_friend_request
 }
